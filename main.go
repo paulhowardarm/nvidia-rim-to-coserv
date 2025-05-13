@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/veraison/corim/comid"
 	"github.com/veraison/corim/corim"
@@ -114,4 +115,47 @@ func main() {
 			}
 		}
 	}
+
+	// Set expiry on the results
+	coservResult.SetExpiry(time.Now())
+
+	// Start building a full CoSERV object
+	// The first thing we need is the query
+	vendor := "NVIDIA"
+	envsel := coserv.NewEnvironmentSelector()
+	envclass := comid.Class{
+		Vendor: &vendor,
+		Model:  rimid,
+	}
+	envsel.AddClass(envclass)
+	query, err := coserv.NewQuery(coserv.ArtifactTypeReferenceValues, *envsel)
+
+	if err != nil {
+		log.Fatalf("Failed to construct Query: %v", err)
+		os.Exit(1)
+	}
+
+	profile := "http://unknown"
+	if scorim.UnsignedCorim.Profile != nil {
+		profile, err = scorim.UnsignedCorim.Profile.Get()
+	}
+
+	coserv, err := coserv.NewCoserv(profile, *query)
+
+	if err != nil {
+		log.Fatalf("Failed to construct top-level CoSERV object: %v", err)
+		os.Exit(1)
+	}
+
+	coserv.AddResults(coservResult)
+	fmt.Printf("coservResult: %#v\n", coservResult)
+
+	edn, err := coserv.ToEDN()
+
+	if err != nil {
+		log.Fatalf("Failed to convert CoSERV to EDN: %v", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(edn)
 }
